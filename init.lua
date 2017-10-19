@@ -99,17 +99,21 @@ end
 minetest.after(CLEANUP_PERIOD__S, cleanInventory)
 
 dropbackpack = function(player)
-	local name = player:get_player_name()
-	if player_backpack[name] then
-		local pos = player:getpos()
-		local pack = player_backpack[name]
-		local obj = pack.object
-		pos.y = pos.y + 0.4
-		pack.owner = nil
-		obj:set_detach()
-		obj:setpos(pos)
-		player_backpack[name] = nil
-	end
+	local player = player
+	minetest.after(.1, function(player) 
+		local name = player:get_player_name()
+		if player_backpack[name] then
+			local pos = player:getpos()
+			local pack = player_backpack[name]
+			local obj = pack.object
+			pos.y = pos.y + 0.4
+			pack.owner = nil
+			obj:set_detach()
+			local addnewentity = rezEntity(nil, pos, player, pack.contents)
+			if addnewentity then obj:remove() end
+			player_backpack[name] = nil
+		end
+	end, player)
 end
 
 minetest.register_on_leaveplayer(function(player)
@@ -280,11 +284,11 @@ minetest.register_entity(
                loop = false
             })
       end,
-		on_step = function(self, dt)
+		--[[on_step = function(self, dt)
 			if self.owner then
 				self.object:setpos(self.owner:getpos())
 			end
-		end
+		end--]]
       --[[on_step = function(self, dt)
          self.timer = self.timer - dt
          if self.timer > 0.0 then return end
@@ -380,7 +384,7 @@ minetest.register_entity(
       end--]]
    })
 
-local function rezEntity(stack, pos, player)
+function rezEntity(stack, pos, player, contents)
    local x = pos.x
    local y = math.floor(pos.y)
    local z = pos.z
@@ -396,15 +400,16 @@ local function rezEntity(stack, pos, player)
 
    local obj = minetest.env:add_entity(pos, "backpack:bag_entity")
    if not obj then return stack end
-
-   local contentData = stack:get_metadata()
-   local contents = deserializeContents(contentData)
-   if contents then
-      obj:get_luaentity().contents = contents
-   end
-
-   obj:set_hp(BAG_MAX_HP - BAG_MAX_HP * stack:get_wear() / 2^16)
-
+   if stack then
+		local contentData = stack:get_metadata()
+		contents = deserializeContents(contentData)
+		obj:set_hp(BAG_MAX_HP - BAG_MAX_HP * stack:get_wear() / 2^16)
+	end
+	if contents then
+		obj:get_luaentity().contents = contents
+	end
+	obj:set_hp(4)
+	
    minetest.sound_play(
       DROP_BAG_SOUND,
       {
@@ -421,7 +426,7 @@ end
 minetest.register_tool(
    "backpack:backpack",
    {
-      description = "Backpack",
+      description = "Backpack (WORK IN PROGRESS, USE AT YOUR OWN RISK)",
       groups = { bag = BAG_WIDTH*BAG_HEIGHT, flammable = 1 },
       inventory_image = "inventory_plus_backpack.png",
       wield_image = "inventory_plus_backpack.png",
